@@ -4,6 +4,17 @@ import type { JobDiff } from "~/types/job";
 export abstract class JobExecutor {
   abstract execute(jobId: string, jobData: any, credentials: any): Promise<any>;
 
+  // Method for creating branch and pushing changes
+  abstract createBranchAndPush(options: {
+    repositoryUrl: string;
+    branch: string;
+    baseBranch: string;
+    title: string;
+    description: string;
+    files: any[];
+    credentials?: any;
+  }): Promise<{ branch: string; commitHash: string }>;
+
   protected parseDiff(diffOutput: string, jobId: string): JobDiff {
     const files: any[] = [];
     const lines = diffOutput.split("\n");
