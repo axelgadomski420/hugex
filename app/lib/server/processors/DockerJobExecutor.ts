@@ -155,6 +155,7 @@ export class DockerJobExecutor extends JobExecutor {
     // Use credentials from request (required - no fallback)
     const openaiKey = credentials?.openaiApiKey;
 
+    // (Optional) enforce openaiKey presence if needed:
     // if (!openaiKey) {
     //   throw new Error(
     //     "OpenAI API key is required but not provided in credentials"
@@ -162,30 +163,48 @@ export class DockerJobExecutor extends JobExecutor {
     // }
 
     // Use user's Docker configuration
-    console.log(`🐳 Using Docker image: ${dockerConfig.image}`);
+    let imageRef = dockerConfig.image;
+    console.log(`🐳 Using Docker image: ${imageRef}`);
+
+    // REMOVE to handle private registry or custom namespace
+    // If the default image is "codex-universal-explore:dev"
+    if (imageRef === "codex-universal-explore:dev") {
+      imageRef = "docker.io/drbh/codex-universal-explore:dev";
+    }
 
     // Check if image exists locally
     try {
-      await this.docker.getImage(dockerConfig.image).inspect();
-      console.log(`✅ Docker image found: ${dockerConfig.image}`);
+      await this.docker.getImage(imageRef).inspect();
+      console.log(`✅ Docker image found: ${imageRef}`);
     } catch (error) {
-      console.error(`❌ Docker image not found: ${dockerConfig.image}`);
+      console.error(`❌ Docker image not found: ${imageRef}`);
 
-      // List available images for debugging
       try {
-        const images = await this.docker.listImages();
-        console.log(`📋 Available Docker images:`);
-        images.forEach((img: any) => {
-          const tags = img.RepoTags || ["<none>:<none>"];
-          console.log(`  - ${tags.join(", ")} (${img.Id.slice(0, 12)})`);
+        const pullStream = await this.docker.pull(imageRef);
+        await new Promise<void>((resolve, reject) => {
+          this.docker.modem.followProgress(
+            pullStream,
+            (err: Error) => {
+              if (err) return reject(err);
+              return resolve();
+            },
+            (event: any) => {
+              // (Optional) uncomment to see each pull progress event:
+              console.log(event.status, event.progress || "");
+            }
+          );
         });
-      } catch (listError) {
-        console.error(`Failed to list images:`, listError.message);
+        console.log(`✅ Successfully pulled image: ${imageRef}`);
+      } catch (pullErr) {
+        console.error(
+          `❌ Failed to pull image "${imageRef}": ${pullErr.message}`
+        );
+        throw new Error(
+          `Could not pull Docker image "${imageRef}". ` +
+            `If it’s on Docker Hub under namespace "drbh", make sure you’ve pushed ` +
+            `"${imageRef}". If it’s on a private registry, ensure you’re logged in and the name is correct.`
+        );
       }
-
-      throw new Error(
-        `Docker image '${dockerConfig.image}' not found. Please check the image name or pull/build the image.`
-      );
     }
 
     // Get repository URL from job data or fall back to server config
@@ -227,7 +246,7 @@ export class DockerJobExecutor extends JobExecutor {
 
     // Use the user's configured Docker image
     const container = await this.docker.createContainer({
-      Image: dockerConfig.image,
+      Image: imageRef,
       Cmd: ["/opt/agents/codex"],
       Env: environment,
       WorkingDir: "/workspace",

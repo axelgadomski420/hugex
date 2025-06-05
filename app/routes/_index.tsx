@@ -202,8 +202,13 @@ export default function Index() {
               dockerConfig.secrets.HUGGINGFACE_TOKEN !== huggingfaceToken);
 
           if (changed) {
+            // also update the LLM_MODEL environment variable to be "o3-mini"
             ConfigService.updateDockerConfig({
               ...dockerConfig,
+              environment: {
+                ...dockerConfig.environment,
+                LLM_MODEL: "o3-mini",
+              },
               secrets: newSecrets,
             });
             console.log("Docker config updated with dev secrets.");

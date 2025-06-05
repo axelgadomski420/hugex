@@ -97,7 +97,7 @@ export const ConfigurationPanel = ({
     KNOWN_ENVIRONMENTS[0].id
   );
   const [dockerConfig, setDockerConfig] = useState<DockerConfig>({
-    image: "drbh/codex-universal-explore:latest",
+    image: "drbh/codex-universal-explore:dev",
     environment: {},
     secrets: {},
   });
