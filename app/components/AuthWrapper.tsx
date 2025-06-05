@@ -17,6 +17,36 @@ export const AuthWrapper: React.FC<AuthWrapperProps> = ({ children }) => {
 
   const [executionMode, setExecutionMode] = useState<string | null>(null);
   const [executionModeLoading, setExecutionModeLoading] = useState(true);
+  const [autoLoginAttempted, setAutoLoginAttempted] = useState(false);
+
+  // Auto-login effect for development (GitHub only)
+  useEffect(() => {
+    const attemptGitHubAutoLogin = async () => {
+      if (autoLoginAttempted || process.env.NODE_ENV !== "development") {
+        return;
+      }
+
+      try {
+        // Only try GitHub auto-connect if we have a token
+        const response = await fetch("/api/auth/github/auto-connect", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+        });
+
+        if (response.ok) {
+          const result = await response.json();
+          console.log(`✅ GitHub auto-connected using ${result.source}`);
+          await refreshAuth();
+        }
+      } catch (error) {
+        // Silently fail - no need to log errors for missing tokens
+      } finally {
+        setAutoLoginAttempted(true);
+      }
+    };
+
+    attemptGitHubAutoLogin();
+  }, [autoLoginAttempted, refreshAuth]);
 
   // Check execution mode on component mount
   useEffect(() => {
@@ -170,7 +200,10 @@ const DockerModeHeader: React.FC = () => {
     }
   };
 
-  const handleGitHubConnect = (method: "oauth" | "pat", token?: string) => {
+  const handleGitHubConnect = async (
+    method: "oauth" | "pat",
+    token?: string
+  ) => {
     if (method === "oauth") {
       AuthService.startGitHubOAuth2Login();
       // Refresh auth status after a delay to catch the GitHub connection
@@ -180,6 +213,35 @@ const DockerModeHeader: React.FC = () => {
     } else if (method === "pat" && token) {
       // Handle PAT connection
       connectWithPAT(token);
+    }
+  };
+
+  const tryAutoConnectGitHub = async () => {
+    try {
+      const response = await fetch("/api/auth/github/auto-connect", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+      });
+
+      if (response.ok) {
+        const result = await response.json();
+        console.log(`✅ GitHub auto-connected using ${result.source}`);
+        checkDockerAuthStatus();
+        return true;
+      }
+    } catch (error) {
+      console.warn("GitHub auto-connect failed:", error);
+    }
+    return false;
+  };
+
+  const handleGitHubConnectClick = async () => {
+    // First try auto-connect with environment variables
+    const autoConnected = await tryAutoConnectGitHub();
+
+    // If auto-connect failed, show the manual connection modal
+    if (!autoConnected) {
+      setShowGitHubModal(true);
     }
   };
 
@@ -320,7 +382,7 @@ const DockerModeHeader: React.FC = () => {
                 </button>
               ) : (
                 <button
-                  onClick={() => setShowGitHubModal(true)}
+                  onClick={handleGitHubConnectClick}
                   className="flex items-center gap-2 rounded-md border border-gray-300 px-3 py-1.5 text-sm text-gray-700 transition-colors hover:bg-gray-50 dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-700"
                 >
                   <svg

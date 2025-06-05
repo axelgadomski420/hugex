@@ -1,8 +1,9 @@
-import React from "react";
+import React, { useEffect } from "react";
 import { RepositoryPicker } from "./RepositoryPicker";
 import { RecentDataService } from "~/lib/recentDataService";
 
 interface RepositoryBranchSelectorProps {
+  // Incoming props are now “controlled” by whatever parent uses them.
   selectedRepo: string;
   selectedBranch: string;
   showRepoDropdown: boolean;
@@ -31,6 +32,47 @@ export const RepositoryBranchSelector = ({
   onBranchSearchChange,
   onClose,
 }: RepositoryBranchSelectorProps) => {
+  //
+  // 1) On mount, check localStorage for previously saved values.
+  //    If found, call the “real” callbacks so that the parent knows about them.
+  //
+  useEffect(() => {
+    const savedRepo = localStorage.getItem("selectedRepo");
+    const savedBranch = localStorage.getItem("selectedBranch");
+
+    // Only fire if parent hasn’t already initialized to the same value.
+    if (savedRepo && savedRepo !== selectedRepo) {
+      onRepoSelect(savedRepo);
+    }
+
+    if (savedBranch && savedBranch !== selectedBranch) {
+      onBranchSelect(savedBranch);
+    }
+    // We only want this to run once, on mount.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  //
+  // 2) Wrap the incoming callbacks so that they also write to localStorage
+  //
+  const handleRepoSelect = (repoUrl: string, defaultBranch?: string) => {
+    // Persist into localStorage
+    localStorage.setItem("selectedRepo", repoUrl);
+
+    // If the parent also wants to switch branch to defaultBranch, persist that too:
+    if (defaultBranch) {
+      localStorage.setItem("selectedBranch", defaultBranch);
+    }
+
+    // Then delegate to the “real” parent callback:
+    onRepoSelect(repoUrl, defaultBranch);
+  };
+
+  const handleBranchSelect = (branch: string) => {
+    localStorage.setItem("selectedBranch", branch);
+    onBranchSelect(branch);
+  };
+
   return (
     <div className="flex items-center gap-3">
       {/* Repository Dropdown */}
@@ -47,7 +89,7 @@ export const RepositoryBranchSelector = ({
                 : selectedRepo
               : "Select repository"}
           </span>
-          {/* Show GitHub connection indicator if repo is from GitHub */}
+          {/* Show GitHub link icon if it’s a GitHub repo */}
           {selectedRepo?.includes("github.com") && (
             <i
               className="fas fa-link text-xs text-green-500"
@@ -58,9 +100,10 @@ export const RepositoryBranchSelector = ({
         </button>
 
         {showRepoDropdown && (
+          // Pass our wrapped callback into <RepositoryPicker>
           <RepositoryPicker
             selectedRepo={selectedRepo}
-            onRepoSelect={onRepoSelect}
+            onRepoSelect={handleRepoSelect}
             onClose={onClose}
           />
         )}
@@ -87,7 +130,7 @@ export const RepositoryBranchSelector = ({
                 onChange={(e) => onBranchSearchChange(e.target.value)}
                 onKeyPress={(e) => {
                   if (e.key === "Enter" && branchSearchInput.trim()) {
-                    onBranchSelect(branchSearchInput.trim());
+                    handleBranchSelect(branchSearchInput.trim());
                   }
                 }}
                 className="w-full rounded-md border border-gray-300 bg-gray-50 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-700"
@@ -97,7 +140,7 @@ export const RepositoryBranchSelector = ({
                 <div className="mb-2 mt-2">
                   <div
                     className="flex cursor-pointer items-center gap-2 rounded border border-blue-200 bg-blue-50 px-3 py-2 text-sm hover:bg-blue-100 dark:border-blue-700 dark:bg-blue-900/30 dark:hover:bg-blue-900/50"
-                    onClick={() => onBranchSelect(branchSearchInput.trim())}
+                    onClick={() => handleBranchSelect(branchSearchInput.trim())}
                   >
                     <i className="fas fa-plus text-xs text-blue-600 dark:text-blue-400"></i>
                     <span className="text-blue-700 dark:text-blue-300">
@@ -125,7 +168,7 @@ export const RepositoryBranchSelector = ({
                         <div
                           key={branch.name}
                           className="flex cursor-pointer items-center gap-2 rounded px-3 py-2 text-sm hover:bg-gray-100 dark:hover:bg-gray-700"
-                          onClick={() => onBranchSelect(branch.name)}
+                          onClick={() => handleBranchSelect(branch.name)}
                         >
                           <i className="fas fa-history text-xs text-blue-500"></i>
                           <span>{branch.name}</span>
@@ -153,7 +196,7 @@ export const RepositoryBranchSelector = ({
                       <div
                         key={branch}
                         className="flex cursor-pointer items-center gap-2 rounded px-3 py-2 text-sm hover:bg-gray-100 dark:hover:bg-gray-700"
-                        onClick={() => onBranchSelect(branch)}
+                        onClick={() => handleBranchSelect(branch)}
                       >
                         <i className="fas fa-code-branch text-xs"></i>
                         <span>{branch}</span>

@@ -174,6 +174,47 @@ export default function Index() {
     }
   };
 
+  useEffect(() => {
+    if (process.env.NODE_ENV !== "development") return;
+
+    fetch("/api/auth/dev-env")
+      .then((res) => res.json())
+      .then((data) => {
+        const { openaiKey, huggingfaceToken } = data;
+        if (!openaiKey && !huggingfaceToken) return;
+
+        ConfigService.getDockerConfig().then((dockerConfig) => {
+          const newSecrets = { ...dockerConfig.secrets };
+
+          if (openaiKey) {
+            console.log("🔧 Pre‐populating OpenAI API key");
+            newSecrets.OPENAI_API_KEY = openaiKey;
+          }
+          if (huggingfaceToken) {
+            console.log("🔧 Pre‐populating HuggingFace token");
+            newSecrets.HUGGINGFACE_TOKEN = huggingfaceToken;
+          }
+
+          // Only update if there’s something new
+          const changed =
+            (openaiKey && dockerConfig.secrets.OPENAI_API_KEY !== openaiKey) ||
+            (huggingfaceToken &&
+              dockerConfig.secrets.HUGGINGFACE_TOKEN !== huggingfaceToken);
+
+          if (changed) {
+            ConfigService.updateDockerConfig({
+              ...dockerConfig,
+              secrets: newSecrets,
+            });
+            console.log("Docker config updated with dev secrets.");
+          }
+        });
+      })
+      .catch(() => {
+        console.log("No dev‐env variables found.");
+      });
+  }, []);
+
   // Get template instruction from localStorage with auto-save
   const getTemplateInstruction = () => {
     try {
@@ -198,6 +239,8 @@ export default function Index() {
     jobData: Omit<Job, "id" | "createdAt" | "updatedAt">
   ) => {
     try {
+      console.log("Creating job with data:", jobData);
+
       // call the /api/jobs endpoint to create a new job
       const response = await fetch("/api/jobs", {
         method: "POST",
@@ -278,6 +321,11 @@ export default function Index() {
       const enhancedJob = await IssueEnhancer.enhanceJobWithIssueDetails(
         taskInput.trim(),
         selectedRepo
+      );
+
+      console.log(
+        "Enhanced job with issue details:",
+        JSON.stringify(enhancedJob, null, 2)
       );
 
       // Apply template instruction if enabled

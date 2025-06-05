@@ -20,30 +20,29 @@ export const RepositoryPicker: React.FC<RepositoryPickerProps> = ({
   const [loadingGithubRepos, setLoadingGithubRepos] = useState(false);
   const [isGithubConnected, setIsGithubConnected] = useState(false);
 
+  //
+  // 1) On mount, try to load the last‐saved repo from localStorage.
+  //    If there is one—and it’s not already the current prop—call onRepoSelect().
+  //
   useEffect(() => {
-    // Load recent repositories
+    const savedRepo = localStorage.getItem("selectedRepo");
+    if (savedRepo && savedRepo !== selectedRepo) {
+      onRepoSelect(savedRepo);
+    }
+
+    // Initialize the “Recent Repositories” list from RecentDataService.
     setRecentRepos(RecentDataService.getRecentRepositories());
 
-    // Check GitHub connection and fetch repos
+    // Check GitHub connection and fetch repos if connected
     checkGitHubConnection();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const checkGitHubConnection = async () => {
     try {
       const authStatus = await AuthService.getAuthStatus();
-      console.log("🔍 Repository Picker - Auth Status:", {
-        isAuthenticated: authStatus.isAuthenticated,
-        hasHuggingFace: authStatus.hasHuggingFace,
-        hasGitHub: authStatus.hasGitHub,
-        hfUserInfo: !!authStatus.hfUserInfo,
-        githubUserInfo: !!authStatus.githubUserInfo,
-      });
-
       const isConnected = authStatus.hasGitHub || false;
       setIsGithubConnected(isConnected);
-
-      console.log(`🔗 GitHub connected: ${isConnected}`);
-
       if (isConnected) {
         fetchGitHubRepositories();
       }
@@ -55,8 +54,8 @@ export const RepositoryPicker: React.FC<RepositoryPickerProps> = ({
 
   const fetchGitHubRepositories = async (searchQuery?: string) => {
     if (loadingGithubRepos) return;
-
     setLoadingGithubRepos(true);
+
     try {
       const params = new URLSearchParams();
       if (searchQuery) {
@@ -65,7 +64,6 @@ export const RepositoryPicker: React.FC<RepositoryPickerProps> = ({
 
       const response = await fetch(`/api/github/repositories?${params}`);
       const data = await response.json();
-
       if (response.ok) {
         setGithubRepos(data.repositories || []);
       } else {
@@ -92,16 +90,23 @@ export const RepositoryPicker: React.FC<RepositoryPickerProps> = ({
     }
   };
 
+  //
+  // 2) Wrap the “real” onRepoSelect so we can persist into localStorage,
+  //    then update RecentDataService and close the picker.
+  //
   const handleRepoSelect = (repoUrl: string, defaultBranch?: string) => {
+    // Persist into localStorage immediately
+    localStorage.setItem("selectedRepo", repoUrl);
+
+    // If the GitHub API gave us a defaultBranch, you could also save that:
+    if (defaultBranch) {
+      localStorage.setItem("selectedBranch", defaultBranch);
+    }
+
+    // Notify parent, update “recent” list, then close
     onRepoSelect(repoUrl, defaultBranch);
     RecentDataService.setSelectedRepository(repoUrl);
     setRecentRepos(RecentDataService.getRecentRepositories());
-
-    // Auto-set default branch if available
-    if (defaultBranch) {
-      RecentDataService.setSelectedBranch(defaultBranch);
-    }
-
     onClose();
   };
 

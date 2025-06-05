@@ -8,8 +8,13 @@ export const action: ActionFunction = async ({ request }) => {
   try {
     const { token } = await request.json();
 
-    // if (!token || !token.startsWith('ghp_')) {
-    if (!token || !token.startsWith("github_pat")) {
+    // tokens start with ghp_ or github_pat
+    if (
+      !token ||
+      (!token.startsWith("ghp_") && !token.startsWith("github_pat"))
+    ) {
+      console.log("Invalid token format");
+
       return json(
         {
           error:
