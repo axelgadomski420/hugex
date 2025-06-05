@@ -1,0 +1,1 @@
+export { HuggingFaceIcon } from "./HuggingFaceIcon";
