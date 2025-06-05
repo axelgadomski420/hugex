@@ -12,7 +12,7 @@ app_port: 3000
 
 ## Run hugex 
 
-higex runs locally and uses Docker to provide runtime environments for coding agents.
+ hugex runs locally and uses Docker to provide runtime environments for coding agents.
 
 
 # Step by step guide to run hugex locally
@@ -34,7 +34,7 @@ GH_TOKEN=github_pat_...
 OPENAI_API_KEY=sk-...
 ```
 
-now run the app
+ Now run the app:
 
 ```bash
 npm i 
@@ -47,6 +47,6 @@ navigate to [http://localhost:5173](http://localhost:5173) in your browser.
 
 Once the app is running you can connect your Github account to see private repos.
 
-You can choose a repo and add kick of tasks in parallel. The app will create a sandbox Docker container for each task and run the code in that container.
+ You can choose a repo and add kick off tasks in parallel. The app will create a sandbox Docker container for each task and run the code in that container.
 
 You can customize the container used and envs and secrets passed to the task in the `environment` tab.
