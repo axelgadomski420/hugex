@@ -1,0 +1,24 @@
+name = "hugex"
+type = "javascript"
+
+account_id = "<TWOJE_ACCOUNT_ID>"
+workers_dev = false
+
+[build]
+  command = "npm run build"
+  upload = { 
+    format = "service-worker",
+    dir = "build/client" 
+  }
+
+[dev]
+  command = "npm run dev"
+  port = 5173
+
+[site]
+  bucket = "build/client"
+  entry-point = "functions"
+
+[functions]
+  directory = "./build/server"
+  node_compat = true
